@@ -1,4 +1,4 @@
-# mod-companion-auras 0.1
+# Companion Auras 0.1
 
 <div align="center">
 
