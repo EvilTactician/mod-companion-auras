@@ -6,7 +6,7 @@
 #
 #    CompanionAuras.Enable
 #        Description: Give real players their companion's aura while a companion (vanity pet) is out.
-#                     Companion names (.petname) work either way.
+#                     Companion names (.petname) and CompanionAuras.Resummon work either way.
 #        Default:     1 - Enabled
 #                     0 - Disabled
 #
@@ -28,8 +28,8 @@ CompanionAuras.DisableInBattlegrounds = 1
 #        Description: In 3.3.5 a companion goes away on every loading screen. With this on, the
 #                     companion you had out comes back after a teleport, hearthstone, flight,
 #                     death or logging in. If you dismissed it yourself, it stays away.
-#                     It waits until it is safe: out of combat, not stealthed or invisible,
-#                     not casting or on a flight, and gives up after 3 failed tries.
+#                     It waits until it is safe: out of combat, not stealthed or invisible, landed,
+#                     off boats and vehicles, not casting or on a flight, and gives up after 3 tries.
 #        Default:     1 - Bring companions back
 #                     0 - Leave them away, like the stock game
 #
