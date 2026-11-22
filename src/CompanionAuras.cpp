@@ -283,10 +283,13 @@ namespace
     }
 
     // Whether the companion went away because of a loading screen, flight, death or logout
-    // (bring it back) rather than the player dismissing it (leave it)
+    // (bring it back) rather than the player dismissing it (leave it).
+    // IsDuringRemoveFromWorld: a map change that isn't a spell (a dungeon or raid portal, joining
+    // a battleground or a dungeon finder group, a boat or zeppelin) takes the player off the old map
+    // before it marks them as teleporting, and the companion is removed during that.
     bool WentAwayOnItsOwn(Player* owner)
     {
-        return owner->IsBeingTeleported() || owner->IsInFlight() || !owner->IsAlive() || !owner->IsInWorld()
+        return owner->IsBeingTeleported() || owner->IsDuringRemoveFromWorld() || owner->IsInFlight() || !owner->IsAlive() || !owner->IsInWorld()
             || (owner->GetSession() && owner->GetSession()->PlayerLogout());
     }
 
@@ -458,9 +461,10 @@ public:
         if (!active)
             return;
 
-        // A teleport within the same map (a .tele or a portal on the same continent) doesn't take
-        // the companion along: it would stay behind, out of sight. Bring it to the player, the way
-        // the core does for hunter pets.
+        // A teleport within the same map (a hearthstone or portal on the same continent, Moonglade,
+        // Dalaran's portals) doesn't take the companion along: it would stay behind, out of sight.
+        // Bring it to the player, the way the core does for hunter pets. Not on boats, zeppelins or
+        // vehicles, where the companion can't stand with the player anyway.
         if (active->companionGuid)
         {
             if (active->followTimer > diff)
@@ -468,7 +472,8 @@ public:
             else
             {
                 active->followTimer = FOLLOW_CHECK_MS;
-                if (player->IsInWorld() && !player->IsBeingTeleported() && !player->IsInFlight())
+                if (player->IsInWorld() && !player->IsBeingTeleported() && !player->IsInFlight()
+                    && !player->GetTransport() && !player->GetVehicle())
                     if (Creature* companion = GetCompanion(player))
                         if (companion->IsInWorld() && companion->GetMap() == player->GetMap() &&
                             !companion->IsWithinDistInMap(player, FOLLOW_MAX_DIST))
