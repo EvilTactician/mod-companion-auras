@@ -5,6 +5,10 @@
  *   .petname <name>   Renames the companion you have out. Same rules as hunter pet names.
  *   .petname          Without a name, puts the companion back to its normal name.
  *
+ * For client addons such as Journal (answers come as "CompAuras" addon messages):
+ *   .companions sync                     the companion list ("A|"), your names ("N|") and "E|" at the end
+ *   .companions name <creature> [name]   renames (or resets) any companion you know, out or not
+ *
  * A renamed companion gets a pet number, so clients ask the server for its name
  * (exactly as they do for hunter pets) and everyone nearby sees the new name.
  * Companions that were never renamed are left completely alone.
@@ -18,12 +22,11 @@
 #include "DatabaseEnv.h"
 #include "DataMap.h"
 #include "GameTime.h"
-#include "Log.h"
 #include "ObjectMgr.h"
 #include "PlayerScript.h"
 #include "ScriptMgr.h"
+#include "StringFormat.h"
 #include "TemporarySummon.h"
-#include "WorldScript.h"
 
 #include <unordered_map>
 
@@ -51,24 +54,52 @@ namespace
             companion->SetUInt32Value(UNIT_FIELD_PETNUMBER, sObjectMgr->GeneratePetNumber());
         companion->SetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP, uint32(GameTime::GetGameTime().count()));
     }
-}
 
-// Names saved by the earlier version in mod-racial-tweaks move over once
-class CompanionNamesWorldScript : public WorldScript
-{
-public:
-    CompanionNamesWorldScript() : WorldScript("CompanionNamesWorldScript", { WORLDHOOK_ON_STARTUP }) { }
-
-    void OnStartup() override
+    // Saves (or with an empty name, clears) a companion name, updates the companion if it is
+    // out, and tells the player and their client addons
+    void SetCompanionName(ChatHandler* handler, Player* player, uint32 entry, std::string const& name)
     {
-        if (!CharacterDatabase.Query("SHOW TABLES LIKE 'mod_racial_tweaks_companion_names'"))
-            return;
+        uint32 guid = player->GetGUID().GetCounter();
+        CompanionNamesData* data = GetNames(player);
+        Creature* companion = GetCompanion(player);
+        if (companion && companion->GetEntry() != entry)
+            companion = nullptr;
 
-        CharacterDatabase.DirectExecute("INSERT IGNORE INTO `mod_companion_auras_names` (`guid`, `entry`, `name`) "
-            "SELECT `guid`, `entry`, `name` FROM `mod_racial_tweaks_companion_names`");
-        LOG_INFO("module", "mod-companion-auras: copied companion names from mod_racial_tweaks_companion_names.");
+        if (name.empty())
+        {
+            data->names.erase(entry);
+            CharacterDatabase.Execute("DELETE FROM `mod_companion_auras_names` WHERE `guid` = {} AND `entry` = {}", guid, entry);
+
+            if (companion)
+            {
+                companion->SetName(companion->GetCreatureTemplate()->Name);
+                companion->SetUInt32Value(UNIT_FIELD_PETNUMBER, 0);
+                companion->SetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP, 0);
+            }
+
+            SendAddonMessage(player, Acore::StringFormat("R|{}", entry));
+            handler->SendSysMessage("Your companion has its normal name again.");
+            return;
+        }
+
+        // Same rules as renaming a hunter pet
+        if (ObjectMgr::CheckPetName(name) != PET_NAME_SUCCESS)
+        {
+            handler->SendSysMessage("That name isn't allowed. Use one word of up to 12 letters, no spaces or numbers.");
+            return;
+        }
+
+        data->names[entry] = name;
+        CharacterDatabase.Execute("REPLACE INTO `mod_companion_auras_names` (`guid`, `entry`, `name`) VALUES ({}, {}, '{}')",
+            guid, entry, CharacterDatabase.EscapeString(name));
+
+        if (companion)
+            ApplyName(companion, name);
+
+        SendAddonMessage(player, Acore::StringFormat("N|{}|{}", entry, name));
+        handler->PSendSysMessage("Your companion is now called {}.", name);
     }
-};
+}
 
 class CompanionNamesPlayerScript : public PlayerScript
 {
@@ -133,14 +164,22 @@ public:
 
     ChatCommandTable GetCommands() const override
     {
+        static ChatCommandTable companionsTable =
+        {
+            { "sync", HandleCompanionsSyncCommand, SEC_PLAYER, Console::No },
+            { "name", HandleCompanionsNameCommand, SEC_PLAYER, Console::No }
+        };
+
         static ChatCommandTable commandTable =
         {
-            { "petname", HandlePetNameCommand, SEC_PLAYER, Console::No }
+            { "petname",    HandlePetNameCommand, SEC_PLAYER, Console::No },
+            { "companions", companionsTable }
         };
 
         return commandTable;
     }
 
+    // .petname [name]: the companion you have out
     static bool HandlePetNameCommand(ChatHandler* handler, Tail newName)
     {
         Player* player = handler->GetPlayer();
@@ -154,44 +193,45 @@ public:
             return true;
         }
 
-        uint32 entry = companion->GetEntry();
-        uint32 guid = player->GetGUID().GetCounter();
-        CompanionNamesData* data = GetNames(player);
-        std::string name(newName);
+        SetCompanionName(handler, player, companion->GetEntry(), std::string(newName));
+        return true;
+    }
 
-        // No name: back to the normal name
-        if (name.empty())
+    // .companions sync: everything a client addon needs, as addon messages
+    static bool HandleCompanionsSyncCommand(ChatHandler* handler)
+    {
+        Player* player = handler->GetPlayer();
+        if (!player)
+            return false;
+
+        SendCompanionList(player);
+        for (auto const& [entry, name] : GetNames(player)->names)
+            SendAddonMessage(player, Acore::StringFormat("N|{}|{}", entry, name));
+        SendAddonMessage(player, "E|");
+        return true;
+    }
+
+    // .companions name <creature> [name]: any companion the player knows, out or not
+    static bool HandleCompanionsNameCommand(ChatHandler* handler, uint32 entry, Tail newName)
+    {
+        Player* player = handler->GetPlayer();
+        if (!player)
+            return false;
+
+        uint32 summonSpell = GetSummonSpell(entry);
+        if (!summonSpell || !player->HasSpell(summonSpell))
         {
-            data->names.erase(entry);
-            CharacterDatabase.Execute("DELETE FROM `mod_companion_auras_names` WHERE `guid` = {} AND `entry` = {}", guid, entry);
-
-            companion->SetName(companion->GetCreatureTemplate()->Name);
-            companion->SetUInt32Value(UNIT_FIELD_PETNUMBER, 0);
-            companion->SetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP, 0);
-            handler->SendSysMessage("Your companion has its normal name again.");
+            handler->SendSysMessage("You don't have that companion.");
             return true;
         }
 
-        // Same rules as renaming a hunter pet
-        if (ObjectMgr::CheckPetName(name) != PET_NAME_SUCCESS)
-        {
-            handler->SendSysMessage("That name isn't allowed. Use one word of up to 12 letters, no spaces or numbers.");
-            return true;
-        }
-
-        data->names[entry] = name;
-        CharacterDatabase.Execute("REPLACE INTO `mod_companion_auras_names` (`guid`, `entry`, `name`) VALUES ({}, {}, '{}')",
-            guid, entry, CharacterDatabase.EscapeString(name));
-
-        ApplyName(companion, name);
-        handler->PSendSysMessage("Your companion is now called {}.", name);
+        SetCompanionName(handler, player, entry, std::string(newName));
         return true;
     }
 };
 
 void AddCompanionNamesScripts()
 {
-    new CompanionNamesWorldScript();
     new CompanionNamesPlayerScript();
     new CompanionNamesCreatureScript();
     new CompanionNamesCommandScript();

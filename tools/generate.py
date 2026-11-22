@@ -463,7 +463,8 @@ def write_sql(spells, by_group, companions):
     for c in companions:
         tier = 1 if c["rarity"] == "Rare" else 0
         text = by_group[(c["group"], tier)][2]
-        line = sql_value(f"Companion: {text[:-1]} while summoned.")
+        drop = " Very rarely dropped by creatures anywhere." if c["obtainable"] != "Yes" else ""
+        line = sql_value(f"Companion: {text[:-1]} while summoned.{drop}")
         lines.append(
             f"UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), "
             f"IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), {line}) WHERE `entry` = {int(c['item_entry'])};")

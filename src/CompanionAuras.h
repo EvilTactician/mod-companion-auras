@@ -41,6 +41,16 @@ namespace CompanionAuras
         ObjectGuid critterGuid = player->GetCritterGUID();
         return critterGuid ? ObjectAccessor::GetCreature(*player, critterGuid) : nullptr;
     }
+
+    // Addon messages for client addons such as Journal: a hidden whisper to the player
+    // with the prefix "CompAuras". Defined in CompanionAuras.cpp.
+    void SendAddonMessage(Player* player, std::string const& message);
+
+    // Sends the companion list (creature, aura spell, flags) to the player's client
+    void SendCompanionList(Player* player);
+
+    // The spell that summons a companion creature, 0 for companions the module doesn't know
+    uint32 GetSummonSpell(uint32 creatureEntry);
 }
 
 #endif

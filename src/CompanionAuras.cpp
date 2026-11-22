@@ -6,6 +6,10 @@
  * Most buffs are plain aura effects. A few are done here in code:
  *   - Lucky:      extra gold on the player's own share of looted gold
  *   - Prospector, Green thumb, Scavenger: one extra main ore / herb / leather per gather
+ *
+ * Also here:
+ *   - World drops: companions nothing else gives can drop, very rarely, from any creature
+ *   - Addon messages (prefix "CompAuras") so client addons such as Journal can show the auras
  */
 
 #include "CompanionAuras.h"
@@ -13,6 +17,7 @@
 #include "AllCreatureScript.h"
 #include "Chat.h"
 #include "Config.h"
+#include "Containers.h"
 #include "DatabaseEnv.h"
 #include "DataMap.h"
 #include "GameObject.h"
@@ -22,13 +27,16 @@
 #include "LootMgr.h"
 #include "LootScript.h"
 #include "Map.h"
+#include "MiscScript.h"
 #include "ObjectMgr.h"
 #include "PlayerScript.h"
 #include "Random.h"
 #include "ScriptMgr.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
+#include "StringFormat.h"
 #include "TemporarySummon.h"
+#include "WorldPacket.h"
 #include "WorldScript.h"
 
 #include <unordered_map>
@@ -44,6 +52,9 @@ namespace
         uint32 helperSpell = 0; // hidden extra aura for effects that don't fit in one spell
         uint8  bonusType   = BONUS_NONE;
         uint32 bonusValue  = 0;
+        uint32 summonSpell = 0; // the companion's own summon spell
+        bool   rare        = false;
+        bool   worldDrop   = false; // nothing else gives it, so it is in the world drop pool
     };
 
     // The companion whose aura a player has right now
@@ -55,20 +66,22 @@ namespace
 
     bool sEnabled = true;
     bool sDisableInBattlegrounds = true;
+    uint32 sWorldDropChance = 20000; // 1 in this many creature kills, 0 = off
 
     // Filled once at startup, read-only afterwards
     std::unordered_map<uint32, CompanionEntry> sByCreature;   // companion creature entry -> its aura
     std::unordered_set<uint32> sModuleSpells;                  // every aura this module can apply
     std::unordered_map<uint32, uint32> sMainItemByGoLoot;      // gameobject loot id -> main item
     std::unordered_map<uint32, uint32> sMainItemBySkinLoot;    // skinning loot id -> main item
+    std::vector<uint32> sWorldDropItems;                       // companion items nothing else gives
 
     ActiveCompanion* GetActive(Player* player)
     {
         return player->CustomData.GetDefault<ActiveCompanion>("CompanionAurasActive");
     }
 
-    // The companion creature an item teaches: the creature its summon spell summons
-    uint32 GetCompanionCreature(ItemTemplate const* proto)
+    // The companion an item teaches: the creature its summon spell summons, and that spell
+    uint32 GetCompanionCreature(ItemTemplate const* proto, uint32& summonSpell)
     {
         for (auto const& itemSpell : proto->Spells)
         {
@@ -80,8 +93,13 @@ namespace
                 continue;
 
             for (SpellEffectInfo const& effect : spellInfo->GetEffects())
+            {
                 if (effect.Effect == SPELL_EFFECT_SUMMON && effect.MiscValue > 0)
+                {
+                    summonSpell = spellInfo->Id;
                     return uint32(effect.MiscValue);
+                }
+            }
         }
 
         return 0;
@@ -105,8 +123,9 @@ namespace
     {
         sByCreature.clear();
         sModuleSpells.clear();
+        sWorldDropItems.clear();
 
-        QueryResult result = WorldDatabase.Query("SELECT `item_entry`, `aura_spell`, `helper_spell`, `bonus_type`, `bonus_value` FROM `mod_companion_auras`");
+        QueryResult result = WorldDatabase.Query("SELECT `item_entry`, `aura_spell`, `helper_spell`, `bonus_type`, `bonus_value`, `rare`, `obtainable` FROM `mod_companion_auras`");
         if (!result)
         {
             LOG_ERROR("module", "mod-companion-auras: table `mod_companion_auras` is empty or missing.");
@@ -123,6 +142,8 @@ namespace
             entry.helperSpell = fields[2].Get<uint32>();
             entry.bonusType   = fields[3].Get<uint8>();
             entry.bonusValue  = fields[4].Get<uint32>();
+            entry.rare        = fields[5].Get<uint8>() != 0;
+            entry.worldDrop   = fields[6].Get<uint8>() == 0;
 
             ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemEntry);
             if (!proto)
@@ -137,7 +158,7 @@ namespace
                 continue;
             }
 
-            uint32 creatureEntry = GetCompanionCreature(proto);
+            uint32 creatureEntry = GetCompanionCreature(proto, entry.summonSpell);
             if (!creatureEntry)
             {
                 LOG_ERROR("module", "mod-companion-auras: item {} ({}) summons no companion, skipped.", itemEntry, proto->Name1);
@@ -148,12 +169,14 @@ namespace
             sModuleSpells.insert(entry.auraSpell);
             if (entry.helperSpell)
                 sModuleSpells.insert(entry.helperSpell);
+            if (entry.worldDrop)
+                sWorldDropItems.push_back(itemEntry);
         } while (result->NextRow());
 
         LoadMainItems("gameobject_loot_template", sMainItemByGoLoot);
         LoadMainItems("skinning_loot_template", sMainItemBySkinLoot);
 
-        LOG_INFO("module", "mod-companion-auras: loaded {} companions.", sByCreature.size());
+        LOG_INFO("module", "mod-companion-auras: loaded {} companions, {} of them world drops.", sByCreature.size(), sWorldDropItems.size());
     }
 
     bool AurasAllowedHere(Player* player)
@@ -217,6 +240,38 @@ namespace
     }
 }
 
+void CompanionAuras::SendAddonMessage(Player* player, std::string const& message)
+{
+    WorldPacket data;
+    ChatHandler::BuildChatPacket(data, CHAT_MSG_WHISPER, LANG_ADDON, player, player, "CompAuras\t" + message);
+    player->SendDirectMessage(&data);
+}
+
+// "A|creature,spell,flags;..." in chunks (flags: 1 rare, 2 world drop), then "E|" when done
+void CompanionAuras::SendCompanionList(Player* player)
+{
+    std::string chunk;
+    for (auto const& [creature, entry] : sByCreature)
+    {
+        std::string item = Acore::StringFormat("{},{},{}", creature, entry.auraSpell, (entry.rare ? 1 : 0) | (entry.worldDrop && sWorldDropChance ? 2 : 0));
+        if (chunk.size() + item.size() > 200)
+        {
+            SendAddonMessage(player, "A|" + chunk);
+            chunk.clear();
+        }
+        chunk += (chunk.empty() ? "" : ";") + item;
+    }
+
+    if (!chunk.empty())
+        SendAddonMessage(player, "A|" + chunk);
+}
+
+uint32 CompanionAuras::GetSummonSpell(uint32 creatureEntry)
+{
+    auto itr = sByCreature.find(creatureEntry);
+    return itr != sByCreature.end() ? itr->second.summonSpell : 0;
+}
+
 class CompanionAurasWorldScript : public WorldScript
 {
 public:
@@ -229,6 +284,7 @@ public:
     {
         sEnabled = sConfigMgr->GetOption<bool>("CompanionAuras.Enable", true);
         sDisableInBattlegrounds = sConfigMgr->GetOption<bool>("CompanionAuras.DisableInBattlegrounds", true);
+        sWorldDropChance = sConfigMgr->GetOption<uint32>("CompanionAuras.WorldDrop.Chance", 20000);
     }
 
     void OnStartup() override
@@ -370,10 +426,48 @@ public:
     }
 };
 
+// World drops: a very rare extra roll on creature loot for a companion nothing else gives.
+// Existing loot tables are not touched; only loot from creatures that have a loot table rolls.
+class CompanionAurasWorldDropScript : public MiscScript
+{
+public:
+    CompanionAurasWorldDropScript() : MiscScript("CompanionAurasWorldDropScript", { MISCHOOK_ON_AFTER_LOOT_TEMPLATE_PROCESS }) { }
+
+    void OnAfterLootTemplateProcess(Loot* loot, LootTemplate const* /*tab*/, LootStore const& store, Player* lootOwner,
+        bool /*personal*/, bool /*noEmptyError*/, uint16 /*lootMode*/) override
+    {
+        if (!sWorldDropChance || sWorldDropItems.empty() || !loot || !lootOwner || &store != &LootTemplates_Creature)
+            return;
+
+        if (urand(1, sWorldDropChance) != 1 || !HasRealPlayer(lootOwner))
+            return;
+
+        uint32 itemEntry = Acore::Containers::SelectRandomContainerElement(sWorldDropItems);
+        loot->AddItem(LootStoreItem(itemEntry, 0, 100.0f, false, LOOT_MODE_DEFAULT, 0, 1, 1));
+    }
+
+private:
+    // Only kills by real players (or a group with one in it) roll
+    static bool HasRealPlayer(Player* lootOwner)
+    {
+        if (!IsPlayerbot(lootOwner))
+            return true;
+
+        if (Group* group = lootOwner->GetGroup())
+            for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+                if (Player* member = ref->GetSource())
+                    if (!IsPlayerbot(member))
+                        return true;
+
+        return false;
+    }
+};
+
 void AddCompanionAurasScripts()
 {
     new CompanionAurasWorldScript();
     new CompanionAurasCreatureScript();
     new CompanionAurasPlayerScript();
     new CompanionAurasLootScript();
+    new CompanionAurasWorldDropScript();
 }
