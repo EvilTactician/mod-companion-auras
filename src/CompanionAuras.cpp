@@ -452,9 +452,21 @@ public:
     void OnPlayerMapChanged(Player* player) override
     {
         if (Creature* companion = GetCompanion(player))
+        {
             ApplyCompanionAura(player, companion);
-        else
-            RemoveCompanionAuras(player);
+            return;
+        }
+
+        // Still marked as out: the companion was only removed after the player had left the old
+        // map (a boat or zeppelin despawns it as it changes map), so the module never saw it go.
+        // It went with the map change, so bring it back.
+        ActiveCompanion* active = player->CustomData.Get<ActiveCompanion>("CompanionAurasActive");
+        bool lostOnTheWay = active && !active->companionGuid.IsEmpty();
+
+        RemoveCompanionAuras(player);
+
+        if (lostOnTheWay && sResummon && active->wantedSpell && !IsPlayerbot(player))
+            active->resummonTimer = RESUMMON_CHECK_MS;
     }
 
     void OnPlayerDeleteFromDB(CharacterDatabaseTransaction trans, uint32 guid) override
