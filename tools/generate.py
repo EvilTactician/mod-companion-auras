@@ -19,7 +19,9 @@ Usage:
 
 Give --dbc the Spell.dbc your client uses now: if another custom patch already ships a
 Spell.dbc (e.g. mod-guild-levels or mod-retail-professions), use that one, so its spells
-are kept. Only one Spell.dbc wins on the client.
+are kept. Only one Spell.dbc wins on the client. For an English client, Spell.dbc and
+SpellIcon.dbc are most likely in Data/enUS/patch-enUS-3.MPQ, or in patch-enUS-4.MPQ if you
+already built patches for other modules.
 """
 
 import argparse
@@ -389,7 +391,7 @@ def make_spell(spell_id, name, text, effects, icon, hidden):
     attributes = ATTR0_NO_AURA_CANCEL | (ATTR0_DO_NOT_DISPLAY if hidden else 0)
     s.update({
         "ID": spell_id,
-        "Attributes": attributes - (1 << 32) if attributes >= (1 << 31) else attributes,
+        "Attributes": attributes,
         "AttributesEx3": ATTR3_ALLOW_AURA_WHILE_DEAD,
         "CastingTimeIndex": CAST_INSTANT,
         "DurationIndex": DURATION_INFINITE,
@@ -565,7 +567,7 @@ def write_dbc(dbc_in, dbc_out, spells):
             elif kind == "s":
                 record += struct.pack("<I", add_string(v))
             else:
-                record += struct.pack("<i", v)
+                record += struct.pack("<I" if v >= 0 else "<i", v)  # unsigned flags (Attributes) and signed amounts
         kept.append(bytes(record))
 
     os.makedirs(os.path.dirname(os.path.abspath(dbc_out)), exist_ok=True)

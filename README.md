@@ -1,10 +1,10 @@
-# Companion Auras 0.1.4
+# Companion Auras 0.1.5
 
 <div align="center">
 
 ![Interface Version](https://img.shields.io/badge/Interface-30300-blue)
 ![WoW Version](https://img.shields.io/badge/WoW-3.3.5a-orange)
-[![Version](https://img.shields.io/badge/Version-0.1.4-green)](https://github.com/EvilTactician/mod-companion-auras)
+[![Version](https://img.shields.io/badge/Version-0.1.5-green)](https://github.com/EvilTactician/mod-companion-auras)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
 **An AzerothCore module which gives vanity companions specific auras (buffs) they provide to their owner, making each companion special and worth having in their own way.**
@@ -66,8 +66,8 @@ Notes:
 
 The buff bar takes each aura's name, icon and tooltip from the client's `Spell.dbc`, so every client needs a small patch:
 
-1. Get the `Spell.dbc` your client uses now. **Only one `Spell.dbc` can win on a client:** if another custom patch already ships one (for example mod-guild-levels or mod-retail-professions), use that one, so its spells are kept. Otherwise use the server's `dbc/Spell.dbc`.
-2. Run the generator with it and the server's `SpellIcon.dbc`:
+1. Get the `Spell.dbc` and `SpellIcon.dbc` your client uses now. **Only one `Spell.dbc` can win on a client:** if another custom patch already ships one (for example mod-guild-levels or mod-retail-professions), use that one, so its spells are kept. For an English client they are most likely in `Data/enUS/patch-enUS-3.MPQ` (the last Blizzard patch), or in `Data/enUS/patch-enUS-4.MPQ` if you already built patches for other modules. Other languages and clients may differ: the highest-numbered patch that contains a `Spell.dbc` is the one the client uses. Extract them with an MPQ tool or StormLib.
+2. Run the generator with both:
    ```
    python3 tools/generate.py --dbc /path/to/Spell.dbc --icons /path/to/SpellIcon.dbc --out tools/out/Spell.dbc
    ```
