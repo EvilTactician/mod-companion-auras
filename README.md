@@ -1,10 +1,10 @@
-# Companion Auras 0.1.9
+# Companion Auras 0.1.10
 
 <div align="center">
 
 ![Interface Version](https://img.shields.io/badge/Interface-30300-blue)
 ![WoW Version](https://img.shields.io/badge/WoW-3.3.5a-orange)
-[![Version](https://img.shields.io/badge/Version-0.1.9-green)](https://github.com/EvilTactician/mod-companion-auras)
+[![Version](https://img.shields.io/badge/Version-0.1.10-green)](https://github.com/EvilTactician/mod-companion-auras)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
 **An AzerothCore module which gives vanity companions specific auras (buffs) they provide to their owner, making each companion special and worth having in their own way.**
@@ -97,7 +97,7 @@ The module's database changes stay when the module is removed, so it comes with 
 
 | Setting | Default | What it does |
 |---|---|---|
-| `CompanionAuras.Enable` | `1` | Companion auras on or off. Companion names work either way. |
+| `CompanionAuras.Enable` | `1` | Companion auras on or off. Companion names and companions coming back work either way. |
 | `CompanionAuras.DisableInBattlegrounds` | `1` | No companion auras in battlegrounds and arenas. |
 | `CompanionAuras.Resummon` | `1` | Bring your companion back after teleports, hearthstone, flights, death and login. |
 | `CompanionAuras.WorldDrop.Chance` | `20000` | World drops: 1 in this many creature kills. `0` turns them off. |

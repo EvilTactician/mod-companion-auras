@@ -235,21 +235,26 @@ namespace
     {
         RemoveCompanionAuras(player);
 
-        if (!sEnabled || IsPlayerbot(player) || !AurasAllowedHere(player))
+        if (IsPlayerbot(player))
             return;
 
         auto itr = sByCreature.find(companion->GetEntry());
         if (itr == sByCreature.end())
             return;
 
+        // Keep track of the companion even where it gives no aura (a battleground, or auras
+        // switched off), so it still comes back after the next loading screen
+        ActiveCompanion* active = GetActive(player);
+        active->companionGuid = companion->GetGUID();
+
+        if (!sEnabled || !AurasAllowedHere(player))
+            return;
+
         CompanionEntry const& entry = itr->second;
         player->AddAura(entry.auraSpell, player);
         if (entry.helperSpell)
             player->AddAura(entry.helperSpell, player);
-
-        ActiveCompanion* active = GetActive(player);
         active->entry = &entry;
-        active->companionGuid = companion->GetGUID();
     }
 
     // The owner of a companion, if the creature is a player's current companion
@@ -269,7 +274,8 @@ namespace
     // Remember a companion the player summoned, so it can come back later
     void RememberCompanion(Player* player, Creature* companion)
     {
-        if (!sResummon || IsPlayerbot(player))
+        // Only companions on the module's list: not quest critters or a Children's Week orphan
+        if (!sResummon || IsPlayerbot(player) || !sByCreature.count(companion->GetEntry()))
             return;
 
         uint32 spellId = companion->GetUInt32Value(UNIT_CREATED_BY_SPELL);
@@ -298,6 +304,8 @@ namespace
     {
         return player->IsInWorld() && !player->IsBeingTeleported() && player->IsAlive() && !player->IsInFlight()
             && !player->IsInCombat() && !player->GetCritterGUID() && !player->GetVehicle()
+            && !player->IsFalling() && !player->GetTransport()                 // landed, not on a boat or zeppelin
+            && !player->GetCharmGUID() && !player->GetCharmerGUID()            // not controlling or controlled
             && !player->HasStealthAura() && !player->HasInvisibilityAura()
             && !player->HasUnitState(UNIT_STATE_CASTING) && !player->IsNonMeleeSpellCast(false);
     }
