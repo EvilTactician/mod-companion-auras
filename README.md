@@ -21,6 +21,7 @@
 - **Real players only.** Playerbots never get companion auras.
 - **Battlegrounds and arenas.** Companion auras switch off inside them by default (a `.conf` setting) and come back when you leave.
 - **World drops.** Companions nothing else on the realm gives (promotional, event and unreleased pets) can drop from any creature, very rarely. Existing loot tables are left alone: it is an extra roll of its own, 1 in 20,000 kills by default.
+- **Journal (optional).** With [EvilTactician's Journal fork](https://github.com/EvilTactician/wow-mod-forever-journal), the Pets tab shows the buff each companion gives, and you can rename your companions there instead of typing `.petname`.
 
 ## The buffs
 
@@ -62,6 +63,10 @@ Notes:
 2. Re-run CMake and rebuild the server.
 3. Copy `conf/mod_companion_auras.conf.dist` to your config folder as `mod_companion_auras.conf` and change it if you like.
 4. Start the server. The module's SQL (the aura spells, the companion table, the item tooltips and the names table) is applied automatically by the database updater.
+
+### Journal (optional)
+
+[EvilTactician's Journal fork](https://github.com/EvilTactician/wow-mod-forever-journal) (a client addon with its own server module) works with this module: its Pets tab shows each companion's buff and lets you rename companions. Install it as its README describes. Companion Auras works without it.
 
 ### Client patch
 
