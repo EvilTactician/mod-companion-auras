@@ -1,0 +1,24 @@
+[worldserver]
+
+########################################
+# mod-companion-auras
+########################################
+#
+#    CompanionAuras.Enable
+#        Description: Give real players their companion's aura while a companion (vanity pet) is out.
+#                     Companion names (.petname) work either way.
+#        Default:     1 - Enabled
+#                     0 - Disabled
+#
+
+CompanionAuras.Enable = 1
+
+#
+#    CompanionAuras.DisableInBattlegrounds
+#        Description: No companion auras inside battlegrounds and arenas. They come back
+#                     when you leave, if your companion is still out.
+#        Default:     1 - No companion auras in battlegrounds and arenas
+#                     0 - Companion auras everywhere
+#
+
+CompanionAuras.DisableInBattlegrounds = 1

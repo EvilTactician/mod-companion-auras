@@ -1,0 +1,19 @@
+group,buff,kind,common,rare,common2,rare2,icon
+Wise,Primary resource,Combat,5,6,,,Interface\Icons\Ability_Hunter_Pet_Owl
+Feline,Critical strike chance,Combat,2,3,,,Interface\Icons\Ability_Hunter_Pet_Cat
+Venomous,Nature damage done,Combat,3,4,,,Interface\Icons\Ability_Hunter_Pet_Scorpid
+Fiery,Fire damage done,Combat,3,4,,,Interface\Icons\Ability_Hunter_Pet_CoreHound
+Frosty,Frost damage done,Combat,3,4,,,Interface\Icons\Spell_Frost_FrostArmor02
+Shadowy,Shadow damage done,Combat,3,4,,,Interface\Icons\Ability_Hunter_Pet_Bat
+Predator,Physical damage done,Combat,3,4,,,Interface\Icons\Ability_Hunter_Pet_Raptor
+Sturdy,Stamina,Combat,3,4,,,Interface\Icons\Ability_Hunter_Pet_Bear
+Dragonkin,Damage taken,Combat,2,3,,,Interface\Icons\INV_Misc_Head_Dragon_01
+Soothing,"Healing done, less threat",Combat,3,4,5,6,Interface\Icons\Spell_Holy_Heal
+Aquatic,Swim speed,Comfort,25,30,,,Interface\Icons\Ability_Hunter_Pet_Turtle
+Feathered,Less falling damage,Comfort,20,20,,,Interface\Icons\Spell_Magic_FeatherFall
+Prospector,Extra ore per node,Comfort,1,1,0,25,Interface\Icons\Trade_Mining
+Mechanical,Engineering skill,Comfort,10,12,,,Interface\Icons\Trade_Engineering
+Green thumb,Extra herb per node,Comfort,1,1,0,25,Interface\Icons\Trade_Herbalism|Interface\Icons\INV_Misc_Flower_02
+Scavenger,Extra leather per skin,Comfort,1,1,0,25,Interface\Icons\INV_Misc_Pelt_Wolf_01
+Champion,Reputation gained,Comfort,5,6,,,Interface\Icons\INV_Misc_Tournaments_Banner_Human|Interface\Icons\Achievement_Reputation_01
+Lucky,Gold looted,Comfort,5,6,,,Interface\Icons\INV_Misc_Coin_01
