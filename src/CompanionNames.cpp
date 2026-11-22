@@ -5,9 +5,13 @@
  *   .petname <name>   Renames the companion you have out. Same rules as hunter pet names.
  *   .petname          Without a name, puts the companion back to its normal name.
  *
- * For client addons such as Journal (answers come as "CompAuras" addon messages):
- *   .companions sync                     the companion list ("A|"), your names ("N|") and "E|" at the end
- *   .companions name <creature> [name]   renames (or resets) any companion you know, out or not
+ * For client addons such as Journal, as an addon message whispered to yourself with the prefix
+ * "CompAuras" (answers come back the same way). A realm without this module just echoes these
+ * back, so an addon can send them safely:
+ *   SYNC                       the companion list ("A|"), your names ("N|") and "E|" at the end
+ *   NAME|<creature>|<name>     renames any companion you know, out or not ("N|", or "F|" if refused)
+ *   NAME|<creature>            puts it back to its normal name ("R|")
+ * The same as chat commands: .companions sync and .companions name <creature> [name].
  *
  * A renamed companion gets a pet number, so clients ask the server for its name
  * (exactly as they do for hunter pets) and everyone nearby sees the new name.
@@ -85,6 +89,7 @@ namespace
         // Same rules as renaming a hunter pet
         if (ObjectMgr::CheckPetName(name) != PET_NAME_SUCCESS)
         {
+            SendAddonMessage(player, Acore::StringFormat("F|{}", entry));
             handler->SendSysMessage("That name isn't allowed. Use one word of up to 12 letters, no spaces or numbers.");
             return;
         }
@@ -101,6 +106,29 @@ namespace
         SendAddonMessage(player, Acore::StringFormat("N|{}|{}", entry, name));
         handler->PSendSysMessage("Your companion is now called {}.", name);
     }
+
+    // The same for any companion the player knows, out or not (client addons, .companions name)
+    void SetKnownCompanionName(ChatHandler* handler, Player* player, uint32 entry, std::string const& name)
+    {
+        uint32 summonSpell = GetSummonSpell(entry);
+        if (!summonSpell || !player->HasSpell(summonSpell))
+        {
+            SendAddonMessage(player, Acore::StringFormat("F|{}", entry));
+            handler->SendSysMessage("You don't have that companion.");
+            return;
+        }
+
+        SetCompanionName(handler, player, entry, name);
+    }
+
+    // Everything a client addon needs: the companion list, the player's names, then "E|"
+    void SendSync(Player* player)
+    {
+        SendCompanionList(player);
+        for (auto const& [entry, name] : GetNames(player)->names)
+            SendAddonMessage(player, Acore::StringFormat("N|{}|{}", entry, name));
+        SendAddonMessage(player, "E|");
+    }
 }
 
 class CompanionNamesPlayerScript : public PlayerScript
@@ -108,8 +136,38 @@ class CompanionNamesPlayerScript : public PlayerScript
 public:
     CompanionNamesPlayerScript() : PlayerScript("CompanionNamesPlayerScript", {
         PLAYERHOOK_ON_LOGIN,
-        PLAYERHOOK_ON_DELETE_FROM_DB
+        PLAYERHOOK_ON_DELETE_FROM_DB,
+        PLAYERHOOK_CAN_PLAYER_USE_PRIVATE_CHAT
     }) { }
+
+    // Requests from client addons: an addon message the player whispers to themselves.
+    // Swallowed, so it never shows up as chat.
+    bool OnPlayerCanUseChat(Player* player, uint32 /*type*/, uint32 lang, std::string& msg, Player* receiver) override
+    {
+        if (lang != LANG_ADDON || receiver != player)
+            return true;
+
+        static std::string const prefix = "CompAuras\t";
+        if (msg.compare(0, prefix.size(), prefix) != 0)
+            return true;
+
+        std::string request = msg.substr(prefix.size());
+        if (request == "SYNC")
+            SendSync(player);
+        else if (request.compare(0, 5, "NAME|") == 0)
+        {
+            std::string rest = request.substr(5);
+            size_t bar = rest.find('|');
+            std::string number = rest.substr(0, bar);
+            std::string name = bar == std::string::npos ? std::string() : rest.substr(bar + 1);
+            if (!number.empty() && number.size() < 10 && number.find_first_not_of("0123456789") == std::string::npos)
+            {
+                ChatHandler handler(player->GetSession());
+                SetKnownCompanionName(&handler, player, uint32(std::stoul(number)), name);
+            }
+        }
+        return false;
+    }
 
     // Loads the character's saved names once per login (real players only)
     void OnPlayerLogin(Player* player) override
@@ -206,10 +264,7 @@ public:
         if (!player)
             return false;
 
-        SendCompanionList(player);
-        for (auto const& [entry, name] : GetNames(player)->names)
-            SendAddonMessage(player, Acore::StringFormat("N|{}|{}", entry, name));
-        SendAddonMessage(player, "E|");
+        SendSync(player);
         return true;
     }
 
@@ -220,14 +275,7 @@ public:
         if (!player)
             return false;
 
-        uint32 summonSpell = GetSummonSpell(entry);
-        if (!summonSpell || !player->HasSpell(summonSpell))
-        {
-            handler->SendSysMessage("You don't have that companion.");
-            return true;
-        }
-
-        SetCompanionName(handler, player, entry, std::string(newName));
+        SetKnownCompanionName(handler, player, entry, std::string(newName));
         return true;
     }
 };
