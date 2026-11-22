@@ -557,6 +557,12 @@ def write_mpq(dbc_out, mpq_out):
     if not lib_path or not os.path.exists(lib_path):
         sys.exit("--mpq needs STORMLIB=/path/to/libstorm.so")
     storm = ctypes.CDLL(lib_path)
+    storm.SFileCreateArchive.restype = ctypes.c_bool
+    storm.SFileCreateArchive.argtypes = [ctypes.c_char_p, ctypes.c_uint, ctypes.c_uint, ctypes.POINTER(ctypes.c_void_p)]
+    storm.SFileAddFileEx.restype = ctypes.c_bool
+    storm.SFileAddFileEx.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint]
+    storm.SFileCloseArchive.restype = ctypes.c_bool
+    storm.SFileCloseArchive.argtypes = [ctypes.c_void_p]
     handle = ctypes.c_void_p()
     if os.path.exists(mpq_out):
         os.remove(mpq_out)
