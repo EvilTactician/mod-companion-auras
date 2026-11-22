@@ -90,8 +90,10 @@ namespace
         }
 
         data->names[entry] = name;
+        std::string escapedName = name;
+        CharacterDatabase.EscapeString(escapedName);
         CharacterDatabase.Execute("REPLACE INTO `mod_companion_auras_names` (`guid`, `entry`, `name`) VALUES ({}, {}, '{}')",
-            guid, entry, CharacterDatabase.EscapeString(name));
+            guid, entry, escapedName);
 
         if (companion)
             ApplyName(companion, name);
