@@ -69,6 +69,8 @@ namespace
         uint32 resummonTimer   = 0; // ms until the next check
         uint8  resummonTries   = 0; // summon attempts since the companion went away
         uint32 followTimer     = 0; // ms until the next "is it still with me?" check
+        bool   lostOnBoard     = false; // went away on a boat or zeppelin: decided once off it
+        uint32 lostOnBoardMap  = 0;     // the map it went away on
     };
 
     bool sEnabled = true;
@@ -281,6 +283,7 @@ namespace
         uint32 spellId = companion->GetUInt32Value(UNIT_CREATED_BY_SPELL);
         ActiveCompanion* active = GetActive(player);
         active->resummonTries = 0;
+        active->lostOnBoard = false;
         if (spellId && spellId != active->wantedSpell)
         {
             active->wantedSpell = spellId;
@@ -411,6 +414,15 @@ public:
         // Dismissed by the player: don't bring it back. Gone on its own: check again soon.
         if (WentAwayOnItsOwn(owner))
             active->resummonTimer = RESUMMON_CHECK_MS;
+        else if (creature->GetTransport() && creature->GetTransport() == owner->GetTransport())
+        {
+            // Gone while both are on a boat or zeppelin. One that sails to another continent
+            // removes the creatures riding it, sometimes before it moves the player. Or the player
+            // dismissed it on board. Decided once the player is off: only a new map brings it back.
+            active->lostOnBoard = true;
+            active->lostOnBoardMap = owner->GetMapId();
+            active->resummonTimer = RESUMMON_CHECK_MS;
+        }
         else if (active->wantedSpell)
         {
             active->wantedSpell = 0;
@@ -452,21 +464,9 @@ public:
     void OnPlayerMapChanged(Player* player) override
     {
         if (Creature* companion = GetCompanion(player))
-        {
             ApplyCompanionAura(player, companion);
-            return;
-        }
-
-        // Still marked as out: the companion was only removed after the player had left the old
-        // map (a boat or zeppelin despawns it as it changes map), so the module never saw it go.
-        // It went with the map change, so bring it back.
-        ActiveCompanion* active = player->CustomData.Get<ActiveCompanion>("CompanionAurasActive");
-        bool lostOnTheWay = active && !active->companionGuid.IsEmpty();
-
-        RemoveCompanionAuras(player);
-
-        if (lostOnTheWay && sResummon && active->wantedSpell && !IsPlayerbot(player))
-            active->resummonTimer = RESUMMON_CHECK_MS;
+        else
+            RemoveCompanionAuras(player);
     }
 
     void OnPlayerDeleteFromDB(CharacterDatabaseTransaction trans, uint32 guid) override
@@ -534,6 +534,18 @@ public:
         {
             active->resummonTimer = RESUMMON_CHECK_MS;
             return;
+        }
+
+        // Went away on a boat or zeppelin: still on the same map means the player dismissed it
+        if (active->lostOnBoard)
+        {
+            active->lostOnBoard = false;
+            if (player->GetMapId() == active->lostOnBoardMap)
+            {
+                active->wantedSpell = 0;
+                SaveWantedCompanion(player, 0);
+                return;
+            }
         }
 
         // A few tries, then give up until the player summons a companion again
