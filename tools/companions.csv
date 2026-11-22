@@ -54,7 +54,6 @@ item_entry,companion,group,rarity,obtainable,summon_spell
 8490,Cat Carrier (Siamese),Feline,Common,Yes,10677
 8488,Cat Carrier (Silver Tabby),Feline,Common,Yes,10678
 8489,Cat Carrier (White Kitten),Feline,Common,Yes,10679
-44820,Red Ribbon Pet Leash,Feline,Common,Yes,61856
 49343,Spectral Tiger Cub,Feline,Rare,No,68810
 23712,White Tiger Cub,Feline,Common,No,30152
 23083,Captured Flame,Fiery,Common,Yes,28871
@@ -79,13 +78,11 @@ item_entry,companion,group,rarity,obtainable,summon_spell
 37297,Gold Medallion,Lucky,Rare,No,48406
 34518,Golden Pig Coin,Lucky,Common,No,45174
 34519,Silver Pig Coin,Lucky,Common,No,45175
-22200,Silver Shafted Arrow,Lucky,Common,Yes,27662
 22235,Truesilver Shafted Arrow,Lucky,Common,Yes,27570
 49287,Tuskarr Kite,Lucky,Rare,No,68767
 32233,Wolpertinger's Tankard,Lucky,Common,Yes,39709
 54436,Blue Clockwork Rocket Bot,Mechanical,Common,Yes,75134
 34425,Clockwork Rocket Bot,Mechanical,Common,No,54187
-35227,Goblin Weather Machine - Prototype 01-B,Mechanical,Rare,No,46203
 15996,Lifelike Mechanical Toad,Mechanical,Common,Yes,19772
 54847,Lil' XT,Mechanical,Rare,No,75906
 10398,Mechanical Chicken,Mechanical,Common,Yes,12243

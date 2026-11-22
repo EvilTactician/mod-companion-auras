@@ -1,10 +1,10 @@
-# Companion Auras 0.1.7
+# Companion Auras 0.1.8
 
 <div align="center">
 
 ![Interface Version](https://img.shields.io/badge/Interface-30300-blue)
 ![WoW Version](https://img.shields.io/badge/WoW-3.3.5a-orange)
-[![Version](https://img.shields.io/badge/Version-0.1.7-green)](https://github.com/EvilTactician/mod-companion-auras)
+[![Version](https://img.shields.io/badge/Version-0.1.8-green)](https://github.com/EvilTactician/mod-companion-auras)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
 **An AzerothCore module which gives vanity companions specific auras (buffs) they provide to their owner, making each companion special and worth having in their own way.**
@@ -16,7 +16,7 @@
 - **Companion auras.** While you have a companion (vanity pet) out, you get its aura, shown on your buff bar with its own icon and tooltip. Dismiss the companion and the aura goes. Only one companion is out at a time, so only one aura is active at a time.
 - **Common and rare.** Rare companions (raid and rare drops, Collector's Edition, trading card and promotional pets) give a slightly stronger version of their group's buff.
 - **Tooltips.** Every companion item says what it gives ("Companion: ... while summoned."), so you know what you are rolling on, buying or being rewarded with. With the client patch, each companion's own spell (action bar, pet list) says it too: "Summons and dismisses your Black Tabby Cat. Critical strike chance increased by 2% while summoned."
-- **Your companion comes back.** In 3.3.5 a companion goes away on every loading screen. The module brings back the companion you had out after a teleport, hearthstone, flight, death or logging in, when it is safe (out of combat, not stealthed). If you dismissed it yourself, it stays away.
+- **Your companion comes back.** In 3.3.5 a companion goes away on every loading screen. The module brings back the companion you had out after a teleport, hearthstone, flight, death or logging in, when it is safe (out of combat, not stealthed). If you dismissed it yourself, it stays away. A teleport on the same continent doesn't take your companion along in 3.3.5 either, so the module brings it to you.
 - **Companion names.** `.petname <name>` renames the companion you have out; `.petname` on its own gives it back its normal name. Names are saved per character and per companion, and everyone nearby sees them.
 - **Real players only.** Playerbots never get companion auras.
 - **Battlegrounds and arenas.** Companion auras switch off inside them by default (a `.conf` setting) and come back when you leave.
