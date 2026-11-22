@@ -1,10 +1,10 @@
-# Companion Auras 0.1.3
+# Companion Auras 0.1.4
 
 <div align="center">
 
 ![Interface Version](https://img.shields.io/badge/Interface-30300-blue)
 ![WoW Version](https://img.shields.io/badge/WoW-3.3.5a-orange)
-[![Version](https://img.shields.io/badge/Version-0.1.3-green)](https://github.com/EvilTactician/mod-companion-auras)
+[![Version](https://img.shields.io/badge/Version-0.1.4-green)](https://github.com/EvilTactician/mod-companion-auras)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
 **An AzerothCore module which gives vanity companions specific auras (buffs) they provide to their owner, making each companion special and worth having in their own way.**
@@ -83,6 +83,14 @@ All sizes and groups come from two files:
 - [`tools/companions.csv`](tools/companions.csv): each companion's group and rarity.
 
 After changing them, run `python3 tools/generate.py` to rebuild `data/sql/db-world/mod_companion_auras_world.sql`, rebuild the client patch as above, and restart the server.
+
+## Uninstalling
+
+The module's database changes stay when the module is removed, so it comes with uninstall SQL in [`tools/uninstall`](tools/uninstall), where the server never runs it on its own:
+
+1. Run `mod_companion_auras_uninstall_world.sql` on the world database, then `mod_companion_auras_uninstall_characters.sql` on the characters database. This restores the companion item tooltips, removes the aura spells and any companion auras saved on characters, and drops the module's tables (saved companion names included).
+2. Remove the module from `modules` and rebuild the server.
+3. Delete the companion patch (e.g. `patch-enUS-5.MPQ`) from each client and delete the client's `Cache` folder.
 
 ## Configuration
 
