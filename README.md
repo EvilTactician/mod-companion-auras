@@ -1,10 +1,10 @@
-# Companion Auras 0.1.10
+# Companion Auras 0.1.11
 
 <div align="center">
 
 ![Interface Version](https://img.shields.io/badge/Interface-30300-blue)
 ![WoW Version](https://img.shields.io/badge/WoW-3.3.5a-orange)
-[![Version](https://img.shields.io/badge/Version-0.1.10-green)](https://github.com/EvilTactician/mod-companion-auras)
+[![Version](https://img.shields.io/badge/Version-0.1.11-green)](https://github.com/EvilTactician/mod-companion-auras)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
 **An AzerothCore module which gives vanity companions specific auras (buffs) they provide to their owner, making each companion special and worth having in their own way.**
@@ -106,15 +106,15 @@ Which companions are world drops is the `obtainable` column of [`tools/companion
 
 ## For addon authors
 
-Client addons (such as Journal) can show each companion's aura and custom name. Send these as chat commands (for example `SendChatMessage(".companions sync", "SAY")`); the answers come back as addon messages with the prefix `CompAuras`:
+Client addons (such as Journal) can show each companion's aura and custom name. They ask with an addon message whispered to the player themselves, prefix `CompAuras`, for example `SendAddonMessage("CompAuras", "SYNC", "WHISPER", UnitName("player"))`. Answers come back as addon messages with the same prefix. On a realm without this module the request simply comes back unanswered, so it is safe to send.
 
-| Command | Answer |
+| Request | Answer |
 |---|---|
-| `.companions sync` | `A\|creature,spell,flags;...` (in several messages), then `N\|creature\|name` for each custom name, then `E\|` |
-| `.companions name <creature> <name>` | `N\|creature\|name` |
-| `.companions name <creature>` | `R\|creature` (back to its normal name) |
+| `SYNC` | `A\|creature,spell,flags;...` (in several messages), then `N\|creature\|name` for each custom name, then `E\|` |
+| `NAME\|creature\|name` | `N\|creature\|name`, or `F\|creature` if the name isn't allowed or the character doesn't know that companion |
+| `NAME\|creature` | `R\|creature` (back to its normal name) |
 
-`creature` is the companion's creature entry (as `GetCompanionInfo` returns it), `spell` its aura spell (its name, icon and tooltip are in the client patch), and `flags` is 1 for rare and 2 for a world drop. Renaming with `.petname` also sends `N|` or `R|`.
+`creature` is the companion's creature entry (as `GetCompanionInfo` returns it), `spell` its aura spell (its name, icon and tooltip are in the client patch), and `flags` is 1 for rare and 2 for a world drop. Renaming with `.petname` also sends `N|` or `R|`. The chat commands `.companions sync` and `.companions name <creature> [name]` do the same by hand.
 
 ## Credits
 
