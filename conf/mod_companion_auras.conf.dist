@@ -22,3 +22,15 @@ CompanionAuras.Enable = 1
 #
 
 CompanionAuras.DisableInBattlegrounds = 1
+
+#
+#    CompanionAuras.WorldDrop.Chance
+#        Description: Companions nothing else on the realm gives can drop from any creature
+#                     with a loot table, as a very rare extra roll: 1 in this many kills.
+#                     Existing loot tables are not changed. Only kills by real players (or a
+#                     group with a real player in it) roll.
+#        Default:     20000 - 1 in 20,000 kills
+#                     0     - No world drops
+#
+
+CompanionAuras.WorldDrop.Chance = 20000

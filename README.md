@@ -1,10 +1,10 @@
-# Companion Auras 0.1.0
+# Companion Auras 0.1.1
 
 <div align="center">
 
 ![Interface Version](https://img.shields.io/badge/Interface-30300-blue)
 ![WoW Version](https://img.shields.io/badge/WoW-3.3.5a-orange)
-[![Version](https://img.shields.io/badge/Version-0.1.0-green)](https://github.com/EvilTactician/mod-companion-auras)
+[![Version](https://img.shields.io/badge/Version-0.1.1-green)](https://github.com/EvilTactician/mod-companion-auras)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
 **An AzerothCore module which gives vanity companions specific auras (buffs) they provide to their owner, making each companion special and worth having in their own way.**
@@ -19,6 +19,7 @@
 - **Companion names.** `.petname <name>` renames the companion you have out; `.petname` on its own gives it back its normal name. Names are saved per character and per companion, and everyone nearby sees them.
 - **Real players only.** Playerbots never get companion auras.
 - **Battlegrounds and arenas.** Companion auras switch off inside them by default (a `.conf` setting) and come back when you leave.
+- **World drops.** Companions nothing else on the realm gives (promotional, event and unreleased pets) can drop from any creature, very rarely. Existing loot tables are left alone: it is an extra roll of its own, 1 in 20,000 kills by default.
 
 ## The buffs
 
@@ -61,8 +62,6 @@ Notes:
 3. Copy `conf/mod_companion_auras.conf.dist` to your config folder as `mod_companion_auras.conf` and change it if you like.
 4. Start the server. The module's SQL (the aura spells, the companion table, the item tooltips and the names table) is applied automatically by the database updater.
 
-If you used the earlier companion names from mod-racial-tweaks, saved names are copied over automatically on the first start.
-
 ### Client patch
 
 The buff bar takes each aura's name, icon and tooltip from the client's `Spell.dbc`, so every client needs a small patch:
@@ -91,6 +90,21 @@ After changing them, run `python3 tools/generate.py` to rebuild `data/sql/db-wor
 |---|---|---|
 | `CompanionAuras.Enable` | `1` | Companion auras on or off. Companion names work either way. |
 | `CompanionAuras.DisableInBattlegrounds` | `1` | No companion auras in battlegrounds and arenas. |
+| `CompanionAuras.WorldDrop.Chance` | `20000` | World drops: 1 in this many creature kills. `0` turns them off. |
+
+Which companions are world drops is the `obtainable` column of [`tools/companions.csv`](tools/companions.csv): `No` means nothing else gives it.
+
+## For addon authors
+
+Client addons (such as Journal) can show each companion's aura and custom name. Send these as chat commands (for example `SendChatMessage(".companions sync", "SAY")`); the answers come back as addon messages with the prefix `CompAuras`:
+
+| Command | Answer |
+|---|---|
+| `.companions sync` | `A\|creature,spell,flags;...` (in several messages), then `N\|creature\|name` for each custom name, then `E\|` |
+| `.companions name <creature> <name>` | `N\|creature\|name` |
+| `.companions name <creature>` | `R\|creature` (back to its normal name) |
+
+`creature` is the companion's creature entry (as `GetCompanionInfo` returns it), `spell` its aura spell (its name, icon and tooltip are in the client patch), and `flags` is 1 for rare and 2 for a world drop. Renaming with `.petname` also sends `N|` or `R|`.
 
 ## Credits
 
