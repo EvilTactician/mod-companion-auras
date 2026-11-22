@@ -71,7 +71,6 @@ INSERT INTO `mod_companion_auras` (`item_entry`, `summon_spell`, `aura_spell`, `
 (8490, 10677, 951002, 0, 0, 0, 'Feline', 0, 1),
 (8488, 10678, 951002, 0, 0, 0, 'Feline', 0, 1),
 (8489, 10679, 951002, 0, 0, 0, 'Feline', 0, 1),
-(44820, 61856, 951002, 0, 0, 0, 'Feline', 0, 1),
 (49343, 68810, 951003, 0, 0, 0, 'Feline', 1, 0),
 (23712, 30152, 951002, 0, 0, 0, 'Feline', 0, 0),
 (23083, 28871, 951006, 0, 0, 0, 'Fiery', 0, 1),
@@ -96,13 +95,11 @@ INSERT INTO `mod_companion_auras` (`item_entry`, `summon_spell`, `aura_spell`, `
 (37297, 48406, 951035, 0, 1, 6, 'Lucky', 1, 0),
 (34518, 45174, 951034, 0, 1, 5, 'Lucky', 0, 0),
 (34519, 45175, 951034, 0, 1, 5, 'Lucky', 0, 0),
-(22200, 27662, 951034, 0, 1, 5, 'Lucky', 0, 1),
 (22235, 27570, 951034, 0, 1, 5, 'Lucky', 0, 1),
 (49287, 68767, 951035, 0, 1, 6, 'Lucky', 1, 0),
 (32233, 39709, 951034, 0, 1, 5, 'Lucky', 0, 1),
 (54436, 75134, 951026, 0, 0, 0, 'Mechanical', 0, 1),
 (34425, 54187, 951026, 0, 0, 0, 'Mechanical', 0, 0),
-(35227, 46203, 951027, 0, 0, 0, 'Mechanical', 1, 0),
 (15996, 19772, 951026, 0, 0, 0, 'Mechanical', 0, 1),
 (54847, 75906, 951027, 0, 0, 0, 'Mechanical', 1, 0),
 (10398, 12243, 951026, 0, 0, 0, 'Mechanical', 0, 1),
@@ -219,6 +216,9 @@ INSERT INTO `spell_dbc` (`ID`, `Category`, `DispelType`, `Mechanic`, `Attributes
 
 -- "Companion: ..." line on each companion item's tooltip. Anything after an earlier
 -- "Companion:" line is replaced, so running this again just updates the text.
+-- Items taken off the list since an earlier version get their own tooltip back first.
+UPDATE `item_template` SET `description` = TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1))
+    WHERE `description` LIKE '%Companion:%' AND `entry` NOT IN (SELECT `item_entry` FROM `mod_companion_auras`);
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Swim speed increased by 25% while summoned. Very rarely dropped by creatures anywhere.') WHERE `entry` = 21168;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Swim speed increased by 25% while summoned.') WHERE `entry` = 20371;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Swim speed increased by 25% while summoned.') WHERE `entry` = 35350;
@@ -274,7 +274,6 @@ UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`descript
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Critical strike chance increased by 2% while summoned.') WHERE `entry` = 8490;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Critical strike chance increased by 2% while summoned.') WHERE `entry` = 8488;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Critical strike chance increased by 2% while summoned.') WHERE `entry` = 8489;
-UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Critical strike chance increased by 2% while summoned.') WHERE `entry` = 44820;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Critical strike chance increased by 3% while summoned. Very rarely dropped by creatures anywhere.') WHERE `entry` = 49343;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Critical strike chance increased by 2% while summoned. Very rarely dropped by creatures anywhere.') WHERE `entry` = 23712;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Fire damage done increased by 3% while summoned.') WHERE `entry` = 23083;
@@ -299,13 +298,11 @@ UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`descript
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Your share of looted gold increased by 6% while summoned. Very rarely dropped by creatures anywhere.') WHERE `entry` = 37297;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Your share of looted gold increased by 5% while summoned. Very rarely dropped by creatures anywhere.') WHERE `entry` = 34518;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Your share of looted gold increased by 5% while summoned. Very rarely dropped by creatures anywhere.') WHERE `entry` = 34519;
-UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Your share of looted gold increased by 5% while summoned.') WHERE `entry` = 22200;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Your share of looted gold increased by 5% while summoned.') WHERE `entry` = 22235;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Your share of looted gold increased by 6% while summoned. Very rarely dropped by creatures anywhere.') WHERE `entry` = 49287;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Your share of looted gold increased by 5% while summoned.') WHERE `entry` = 32233;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Engineering skill increased by 10 while summoned.') WHERE `entry` = 54436;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Engineering skill increased by 10 while summoned. Very rarely dropped by creatures anywhere.') WHERE `entry` = 34425;
-UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Engineering skill increased by 12 while summoned. Very rarely dropped by creatures anywhere.') WHERE `entry` = 35227;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Engineering skill increased by 10 while summoned.') WHERE `entry` = 15996;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Engineering skill increased by 12 while summoned. Very rarely dropped by creatures anywhere.') WHERE `entry` = 54847;
 UPDATE `item_template` SET `description` = CONCAT(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)), IF(TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1)) = '', '', ' '), 'Companion: Engineering skill increased by 10 while summoned.') WHERE `entry` = 10398;

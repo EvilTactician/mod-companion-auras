@@ -68,6 +68,7 @@ namespace
         uint32 wantedSpell     = 0; // summon spell of the companion they had out, 0 = none
         uint32 resummonTimer   = 0; // ms until the next check
         uint8  resummonTries   = 0; // summon attempts since the companion went away
+        uint32 followTimer     = 0; // ms until the next "is it still with me?" check
     };
 
     bool sEnabled = true;
@@ -78,6 +79,8 @@ namespace
     constexpr uint32 RESUMMON_CHECK_MS  = 2000; // how often to look again while waiting
     constexpr uint32 RESUMMON_LOGIN_MS  = 5000; // a little longer after login, for the client
     constexpr uint8  RESUMMON_MAX_TRIES = 3;    // then give up until the player summons one
+    constexpr uint32 FOLLOW_CHECK_MS    = 1000; // how often to check the companion is still nearby
+    constexpr float  FOLLOW_MAX_DIST    = 60.0f; // further than this: bring it to the player
 
     // Filled once at startup, read-only afterwards
     std::unordered_map<uint32, CompanionEntry> sByCreature;   // companion creature entry -> its aura
@@ -452,7 +455,29 @@ public:
     void OnPlayerUpdate(Player* player, uint32 diff) override
     {
         ActiveCompanion* active = player->CustomData.Get<ActiveCompanion>("CompanionAurasActive");
-        if (!active || !active->resummonTimer)
+        if (!active)
+            return;
+
+        // A teleport within the same map (a .tele or a portal on the same continent) doesn't take
+        // the companion along: it would stay behind, out of sight. Bring it to the player, the way
+        // the core does for hunter pets.
+        if (active->companionGuid)
+        {
+            if (active->followTimer > diff)
+                active->followTimer -= diff;
+            else
+            {
+                active->followTimer = FOLLOW_CHECK_MS;
+                if (player->IsInWorld() && !player->IsBeingTeleported() && !player->IsInFlight())
+                    if (Creature* companion = GetCompanion(player))
+                        if (companion->IsInWorld() && companion->GetMap() == player->GetMap() &&
+                            !companion->IsWithinDistInMap(player, FOLLOW_MAX_DIST))
+                            companion->NearTeleportTo(player->GetPositionX(), player->GetPositionY(),
+                                player->GetPositionZ(), companion->GetOrientation());
+            }
+        }
+
+        if (!active->resummonTimer)
             return;
 
         if (active->resummonTimer > diff)

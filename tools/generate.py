@@ -464,7 +464,10 @@ def write_sql(spells, by_group, companions):
     lines.append(",\n".join("(" + ", ".join(sql_value(s[c]) for c, _ in COLUMNS) + ")" for s in spells) + ";")
 
     lines += ["", "-- \"Companion: ...\" line on each companion item's tooltip. Anything after an earlier",
-              "-- \"Companion:\" line is replaced, so running this again just updates the text."]
+              "-- \"Companion:\" line is replaced, so running this again just updates the text.",
+              "-- Items taken off the list since an earlier version get their own tooltip back first.",
+              "UPDATE `item_template` SET `description` = TRIM(SUBSTRING_INDEX(`description`, 'Companion:', 1))",
+              "    WHERE `description` LIKE '%Companion:%' AND `entry` NOT IN (SELECT `item_entry` FROM `mod_companion_auras`);"]
     for c in companions:
         tier = 1 if c["rarity"] == "Rare" else 0
         text = by_group[(c["group"], tier)][2]
