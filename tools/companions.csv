@@ -3,7 +3,6 @@ item_entry,companion,group,rarity,obtainable,summon_spell
 20371,Blue Murloc Egg,Aquatic,Common,Yes,24696
 35350,Chuck's Bucket,Aquatic,Common,Yes,46426
 46545,Curious Oracle Hatchling,Aquatic,Common,Yes,65381
-46802,Heavy Murloc Egg,Aquatic,Common,No,66030
 27445,Magical Crawdad Box,Aquatic,Common,Yes,33050
 33993,Mojo,Aquatic,Rare,No,43918
 33818,Muckbreath's Bucket,Aquatic,Common,Yes,43698
@@ -101,6 +100,7 @@ item_entry,companion,group,rarity,obtainable,summon_spell
 48112,Darting Hatchling,Predator,Common,Yes,67413
 48114,Deviate Hatchling,Predator,Common,Yes,67414
 48116,Gundrak Hatchling,Predator,Rare,Yes,67415
+46802,Heavy Murloc Egg,Predator,Common,No,66030
 48118,Leaping Hatchling,Predator,Common,Yes,67416
 48120,Obsidian Hatchling,Predator,Common,Yes,67417
 48122,Ravasaur Hatchling,Predator,Common,Yes,67418
