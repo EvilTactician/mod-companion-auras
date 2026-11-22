@@ -1,6 +1,6 @@
 group,buff,kind,common,rare,common2,rare2,icon
 Wise,Primary resource,Combat,5,6,,,Interface\Icons\Ability_Hunter_Pet_Owl
-Feline,Critical strike chance,Combat,2,3,,,Interface\Icons\Ability_Hunter_Pet_Cat
+Feline,Critical strike chance,Combat,2,3,,,Interface\Icons\Ability_Druid_CatForm|Interface\Icons\Ability_Hunter_Pet_Cat
 Venomous,Nature damage done,Combat,3,4,,,Interface\Icons\Ability_Hunter_Pet_Scorpid
 Fiery,Fire damage done,Combat,3,4,,,Interface\Icons\Ability_Hunter_Pet_CoreHound
 Frosty,Frost damage done,Combat,3,4,,,Interface\Icons\Spell_Frost_FrostArmor02

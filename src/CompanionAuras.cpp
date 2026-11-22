@@ -10,6 +10,8 @@
  * Also here:
  *   - World drops: companions nothing else gives can drop, very rarely, from any creature
  *   - Addon messages (prefix "CompAuras") so client addons such as Journal can show the auras
+ *   - Bringing your companion back after a loading screen, hearthstone, flight, death or
+ *     login, unless you dismissed it yourself
  */
 
 #include "CompanionAuras.h"
@@ -57,16 +59,25 @@ namespace
         bool   worldDrop   = false; // nothing else gives it, so it is in the world drop pool
     };
 
-    // The companion whose aura a player has right now
+    // A player's companion state: the aura they have now, and the companion to bring back
     struct ActiveCompanion : DataMap::Base
     {
         CompanionEntry const* entry = nullptr;
         ObjectGuid companionGuid;
+
+        uint32 wantedSpell     = 0; // summon spell of the companion they had out, 0 = none
+        uint32 resummonTimer   = 0; // ms until the next check
+        uint8  resummonTries   = 0; // summon attempts since the companion went away
     };
 
     bool sEnabled = true;
     bool sDisableInBattlegrounds = true;
+    bool sResummon = true;
     uint32 sWorldDropChance = 20000; // 1 in this many creature kills, 0 = off
+
+    constexpr uint32 RESUMMON_CHECK_MS  = 2000; // how often to look again while waiting
+    constexpr uint32 RESUMMON_LOGIN_MS  = 5000; // a little longer after login, for the client
+    constexpr uint8  RESUMMON_MAX_TRIES = 3;    // then give up until the player summons one
 
     // Filled once at startup, read-only afterwards
     std::unordered_map<uint32, CompanionEntry> sByCreature;   // companion creature entry -> its aura
@@ -80,27 +91,41 @@ namespace
         return player->CustomData.GetDefault<ActiveCompanion>("CompanionAurasActive");
     }
 
-    // The companion an item teaches: the creature its summon spell summons, and that spell
-    uint32 GetCompanionCreature(ItemTemplate const* proto, uint32& summonSpell)
+    // The creature a spell summons, following the spells it triggers or teaches (a few levels
+    // deep, as some companion items use a spell that casts or teaches the real summon spell)
+    uint32 GetSummonedCreature(uint32 spellId, uint32& summonSpell, uint8 depth = 0)
     {
-        for (auto const& itemSpell : proto->Spells)
+        SpellInfo const* spellInfo = spellId ? sSpellMgr->GetSpellInfo(spellId) : nullptr;
+        if (!spellInfo || depth > 3)
+            return 0;
+
+        for (SpellEffectInfo const& effect : spellInfo->GetEffects())
         {
-            if (itemSpell.SpellId <= 0)
-                continue;
-
-            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(itemSpell.SpellId);
-            if (!spellInfo)
-                continue;
-
-            for (SpellEffectInfo const& effect : spellInfo->GetEffects())
+            if (effect.Effect == SPELL_EFFECT_SUMMON && effect.MiscValue > 0)
             {
-                if (effect.Effect == SPELL_EFFECT_SUMMON && effect.MiscValue > 0)
-                {
-                    summonSpell = spellInfo->Id;
-                    return uint32(effect.MiscValue);
-                }
+                summonSpell = spellInfo->Id;
+                return uint32(effect.MiscValue);
             }
         }
+
+        for (SpellEffectInfo const& effect : spellInfo->GetEffects())
+            if (effect.TriggerSpell && effect.TriggerSpell != spellId)
+                if (uint32 creature = GetSummonedCreature(effect.TriggerSpell, summonSpell, depth + 1))
+                    return creature;
+
+        return 0;
+    }
+
+    // The companion an item teaches: its summon spell from the table first, then the item's spells
+    uint32 GetCompanionCreature(ItemTemplate const* proto, uint32 tableSpell, uint32& summonSpell)
+    {
+        if (uint32 creature = GetSummonedCreature(tableSpell, summonSpell))
+            return creature;
+
+        for (auto const& itemSpell : proto->Spells)
+            if (itemSpell.SpellId > 0)
+                if (uint32 creature = GetSummonedCreature(uint32(itemSpell.SpellId), summonSpell))
+                    return creature;
 
         return 0;
     }
@@ -125,7 +150,7 @@ namespace
         sModuleSpells.clear();
         sWorldDropItems.clear();
 
-        QueryResult result = WorldDatabase.Query("SELECT `item_entry`, `aura_spell`, `helper_spell`, `bonus_type`, `bonus_value`, `rare`, `obtainable` FROM `mod_companion_auras`");
+        QueryResult result = WorldDatabase.Query("SELECT `item_entry`, `aura_spell`, `helper_spell`, `bonus_type`, `bonus_value`, `rare`, `obtainable`, `summon_spell` FROM `mod_companion_auras`");
         if (!result)
         {
             LOG_ERROR("module", "mod-companion-auras: table `mod_companion_auras` is empty or missing.");
@@ -158,7 +183,7 @@ namespace
                 continue;
             }
 
-            uint32 creatureEntry = GetCompanionCreature(proto, entry.summonSpell);
+            uint32 creatureEntry = GetCompanionCreature(proto, fields[7].Get<uint32>(), entry.summonSpell);
             if (!creatureEntry)
             {
                 LOG_ERROR("module", "mod-companion-auras: item {} ({}) summons no companion, skipped.", itemEntry, proto->Name1);
@@ -182,6 +207,15 @@ namespace
     bool AurasAllowedHere(Player* player)
     {
         return !(sDisableInBattlegrounds && player->GetMap() && player->GetMap()->IsBattlegroundOrArena());
+    }
+
+    // Saved so the companion can come back after logging in
+    void SaveWantedCompanion(Player* player, uint32 spellId)
+    {
+        if (spellId)
+            CharacterDatabase.Execute("REPLACE INTO `mod_companion_auras_resummon` (`guid`, `spell`) VALUES ({}, {})", player->GetGUID().GetCounter(), spellId);
+        else
+            CharacterDatabase.Execute("DELETE FROM `mod_companion_auras_resummon` WHERE `guid` = {}", player->GetGUID().GetCounter());
     }
 
     void RemoveCompanionAuras(Player* player)
@@ -227,6 +261,39 @@ namespace
             return nullptr;
 
         return owner;
+    }
+
+    // Remember a companion the player summoned, so it can come back later
+    void RememberCompanion(Player* player, Creature* companion)
+    {
+        if (!sResummon || IsPlayerbot(player))
+            return;
+
+        uint32 spellId = companion->GetUInt32Value(UNIT_CREATED_BY_SPELL);
+        ActiveCompanion* active = GetActive(player);
+        active->resummonTries = 0;
+        if (spellId && spellId != active->wantedSpell)
+        {
+            active->wantedSpell = spellId;
+            SaveWantedCompanion(player, spellId);
+        }
+    }
+
+    // Whether the companion went away because of a loading screen, flight, death or logout
+    // (bring it back) rather than the player dismissing it (leave it)
+    bool WentAwayOnItsOwn(Player* owner)
+    {
+        return owner->IsBeingTeleported() || owner->IsInFlight() || !owner->IsAlive() || !owner->IsInWorld()
+            || (owner->GetSession() && owner->GetSession()->PlayerLogout());
+    }
+
+    // Safe moment to summon: no companion out, nothing that a summon would break or that blocks it
+    bool CanResummonNow(Player* player)
+    {
+        return player->IsInWorld() && !player->IsBeingTeleported() && player->IsAlive() && !player->IsInFlight()
+            && !player->IsInCombat() && !player->GetCritterGUID() && !player->GetVehicle()
+            && !player->HasStealthAura() && !player->HasInvisibilityAura()
+            && !player->HasUnitState(UNIT_STATE_CASTING) && !player->IsNonMeleeSpellCast(false);
     }
 
     // Extra items for the gathering buffs
@@ -284,6 +351,7 @@ public:
     {
         sEnabled = sConfigMgr->GetOption<bool>("CompanionAuras.Enable", true);
         sDisableInBattlegrounds = sConfigMgr->GetOption<bool>("CompanionAuras.DisableInBattlegrounds", true);
+        sResummon = sConfigMgr->GetOption<bool>("CompanionAuras.Resummon", true);
         sWorldDropChance = sConfigMgr->GetOption<uint32>("CompanionAuras.WorldDrop.Chance", 20000);
     }
 
@@ -301,7 +369,10 @@ public:
     void OnCreatureAddWorld(Creature* creature) override
     {
         if (Player* owner = GetCompanionOwner(creature))
+        {
             ApplyCompanionAura(owner, creature);
+            RememberCompanion(owner, creature);
+        }
     }
 
     void OnCreatureRemoveWorld(Creature* creature) override
@@ -314,8 +385,23 @@ public:
             return;
 
         Player* owner = ObjectAccessor::GetPlayer(*creature, summonerGuid);
-        if (owner && GetActive(owner)->companionGuid == creature->GetGUID())
-            RemoveCompanionAuras(owner);
+        if (!owner)
+            return;
+
+        ActiveCompanion* active = GetActive(owner);
+        if (active->companionGuid != creature->GetGUID())
+            return; // an older companion, already replaced by a new one
+
+        RemoveCompanionAuras(owner);
+
+        // Dismissed by the player: don't bring it back. Gone on its own: check again soon.
+        if (WentAwayOnItsOwn(owner))
+            active->resummonTimer = RESUMMON_CHECK_MS;
+        else if (active->wantedSpell)
+        {
+            active->wantedSpell = 0;
+            SaveWantedCompanion(owner, 0);
+        }
     }
 };
 
@@ -325,13 +411,27 @@ public:
     CompanionAurasPlayerScript() : PlayerScript("CompanionAurasPlayerScript", {
         PLAYERHOOK_ON_LOGIN,
         PLAYERHOOK_ON_MAP_CHANGED,
-        PLAYERHOOK_ON_LOOT_ITEM
+        PLAYERHOOK_ON_LOOT_ITEM,
+        PLAYERHOOK_ON_UPDATE,
+        PLAYERHOOK_ON_DELETE_FROM_DB
     }) { }
 
-    // Auras are saved with the character, but the companion is not: clear any left over
+    // Auras are saved with the character, but the companion is not: clear any left over, and
+    // bring back the companion the player had out when they logged out
     void OnPlayerLogin(Player* player) override
     {
         RemoveCompanionAuras(player);
+
+        if (!sResummon || IsPlayerbot(player))
+            return;
+
+        ActiveCompanion* active = GetActive(player);
+        if (QueryResult result = CharacterDatabase.Query("SELECT `spell` FROM `mod_companion_auras_resummon` WHERE `guid` = {}", player->GetGUID().GetCounter()))
+        {
+            active->wantedSpell = result->Fetch()[0].Get<uint32>();
+            active->resummonTries = 0;
+            active->resummonTimer = RESUMMON_LOGIN_MS;
+        }
     }
 
     // Entering or leaving a battleground or arena switches the aura off or back on
@@ -341,6 +441,58 @@ public:
             ApplyCompanionAura(player, companion);
         else
             RemoveCompanionAuras(player);
+    }
+
+    void OnPlayerDeleteFromDB(CharacterDatabaseTransaction trans, uint32 guid) override
+    {
+        trans->Append("DELETE FROM `mod_companion_auras_resummon` WHERE `guid` = {}", guid);
+    }
+
+    // Only does anything for a player waiting to get their companion back
+    void OnPlayerUpdate(Player* player, uint32 diff) override
+    {
+        ActiveCompanion* active = player->CustomData.Get<ActiveCompanion>("CompanionAurasActive");
+        if (!active || !active->resummonTimer)
+            return;
+
+        if (active->resummonTimer > diff)
+        {
+            active->resummonTimer -= diff;
+            return;
+        }
+        active->resummonTimer = 0;
+
+        // Nothing to do: switched off, nothing wanted, or a companion is out already
+        if (!sResummon || !active->wantedSpell || player->GetCritterGUID())
+        {
+            // Safety: an aura without its companion should never stay
+            if (active->entry && !GetCompanion(player))
+                RemoveCompanionAuras(player);
+            return;
+        }
+
+        if (!player->HasSpell(active->wantedSpell))
+        {
+            active->wantedSpell = 0;
+            SaveWantedCompanion(player, 0);
+            return;
+        }
+
+        // Not a good moment (combat, stealth, a flight, dead, casting...): wait and look again.
+        // This doesn't count as a try, so a long flight or fight is fine.
+        if (!CanResummonNow(player))
+        {
+            active->resummonTimer = RESUMMON_CHECK_MS;
+            return;
+        }
+
+        // A few tries, then give up until the player summons a companion again
+        if (active->resummonTries >= RESUMMON_MAX_TRIES)
+            return;
+
+        ++active->resummonTries;
+        player->CastSpell(player, active->wantedSpell, true);
+        active->resummonTimer = RESUMMON_CHECK_MS; // look again: if it didn't come out, try again
     }
 
     void OnPlayerLootItem(Player* player, Item* item, uint32 /*count*/, ObjectGuid lootguid) override
