@@ -23,6 +23,16 @@
 - **World drops.** Companions nothing else on the realm gives (promotional, event and unreleased pets) can drop from any creature, very rarely. Existing loot tables are left alone: it is an extra roll of its own, 1 in 20,000 kills by default.
 - **Journal (optional).** With [My Journal fork](https://github.com/EvilTactician/wow-mod-forever-journal), the Pets tab shows the buff each companion gives, and you can rename your companions there instead of typing `.petname`.
 
+## Screenshots
+Screenshot includes my optional DragonUI fork.
+<img width="1428" height="978" alt="image" src="https://github.com/user-attachments/assets/931bfa0b-d444-42c0-bfcc-359165840cf3" />
+<details>
+<summary><strong>See more screenshots (click to expand)</strong></summary>
+<img width="1422" height="978" alt="image" src="https://github.com/user-attachments/assets/33c525c6-bf68-40f9-bbc4-b9fdbec9c92b" />
+<img width="485" height="194" alt="image" src="https://github.com/user-attachments/assets/3af105fa-08d3-4e06-b147-1205199e14af" />
+</details>
+
+
 ## The buffs
 
 Each companion belongs to a group. Combat buffs are small but noticeable; comfort buffs help outside combat.
