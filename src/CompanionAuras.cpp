@@ -252,7 +252,9 @@ namespace
 
         CompanionEntry const& entry = itr->second;
         player->AddAura(entry.auraSpell, player);
-        if (entry.helperSpell)
+        // The rune helper is for Death Knights only: on any other class the server
+        // reads runes the player doesn't have and crashes
+        if (entry.helperSpell && player->getClass() == CLASS_DEATH_KNIGHT)
             player->AddAura(entry.helperSpell, player);
         active->entry = &entry;
     }
